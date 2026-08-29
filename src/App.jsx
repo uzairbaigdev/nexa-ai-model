@@ -262,6 +262,34 @@ function App() {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
+  // Real mobile viewport height fix. Mobile browsers (esp. iOS Safari and
+  // Android Chrome) resize their chrome (address bar / keyboard) without
+  // firing a reliable resize of 100vh, which causes clipped layouts or a
+  // dead gap behind the on-screen keyboard. We track the actual visual
+  // viewport height in a CSS variable and use that instead of 100vh.
+  useEffect(() => {
+    const setAppHeight = () => {
+      const height = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+      document.documentElement.style.setProperty('--app-height', `${height}px`);
+    };
+
+    setAppHeight();
+
+    window.addEventListener('resize', setAppHeight);
+    window.addEventListener('orientationchange', setAppHeight);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', setAppHeight);
+    }
+
+    return () => {
+      window.removeEventListener('resize', setAppHeight);
+      window.removeEventListener('orientationchange', setAppHeight);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', setAppHeight);
+      }
+    };
+  }, []);
+
   const scrollToBottom = useCallback((behavior = 'smooth') => {
     const el = viewportRef.current;
     if (el) el.scrollTo({ top: el.scrollHeight, behavior });
@@ -406,6 +434,9 @@ function App() {
             onKeyDown={handleKeyDown}
             disabled={loading}
             rows={1}
+            enterKeyHint="send"
+            autoComplete="off"
+            autoCapitalize="sentences"
           />
           <button
             className="send-btn"

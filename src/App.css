@@ -54,10 +54,10 @@ html, body, #root {
   height: 100%;
 }
 
-#root {
-  margin: 0;
-  padding: 0;
-  max-width: none;
+html {
+  /* Prevents iOS from auto-zooming the page when a text input is focused. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
@@ -66,14 +66,47 @@ body {
   background-color: var(--bg-soft);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+  /* Overrides Vite's default scaffold styles (display:flex + place-items:
+     center on body, max-width/padding/text-align on #root) in case they
+     are still present in index.css — those rules shrink this app into a
+     small centered box instead of letting it fill the viewport, which is
+     the most common cause of "not responsive" on a fresh Vite project. */
+  display: block;
+  place-items: unset;
+  min-width: 0;
+  text-align: left;
+}
+
+#root {
+  margin: 0;
+  padding: 0;
+  max-width: none;
+  width: 100%;
+  text-align: left;
 }
 
 .app-shell {
   display: flex;
   flex-direction: column;
+  width: 100%;
+  /* 100vh is unreliable on mobile browsers because address bars and the
+     on-screen keyboard resize the viewport without updating vh units
+     consistently. We layer three fallbacks, most to least compatible:
+     1) 100vh — baseline for very old browsers
+     2) --app-height — set from JS via visualViewport, most accurate on
+        iOS Safari / Android Chrome, including keyboard open/close
+     3) 100dvh — modern browsers' native dynamic viewport unit, used last
+        so it wins when supported since it self-updates without JS. */
   height: 100vh;
+  height: var(--app-height, 100vh);
+  height: 100dvh;
   background-color: var(--bg);
   transition: background-color 0.2s ease, color 0.2s ease;
+  /* Respect notches / home indicators on iPhone when the page is
+     installed as a PWA or the meta viewport includes viewport-fit=cover. */
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 /* ---------- Top bar ---------- */
@@ -82,7 +115,9 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.85rem 1.5rem;
+  gap: 0.75rem;
+  padding: clamp(0.6rem, 2vw, 0.85rem) clamp(0.85rem, 4vw, 1.5rem);
+  padding-top: calc(clamp(0.6rem, 2vw, 0.85rem) + env(safe-area-inset-top));
   border-bottom: 1px solid var(--border);
   background-color: var(--bg);
   flex-shrink: 0;
@@ -92,6 +127,13 @@ body {
   display: flex;
   align-items: center;
   gap: 0.6rem;
+  min-width: 0;
+}
+
+.brand-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .brand-mark {
@@ -141,6 +183,15 @@ body {
   color: var(--text-primary);
 }
 
+/* Touch targets should meet the ~44px accessibility minimum; mouse users
+   keep the tighter 36px sizing since precision isn't a constraint. */
+@media (hover: none) and (pointer: coarse) {
+  .icon-btn {
+    width: 44px;
+    height: 44px;
+  }
+}
+
 .new-chat-btn {
   display: flex;
   align-items: center;
@@ -173,7 +224,9 @@ body {
 .chat-viewport {
   flex: 1;
   overflow-y: auto;
-  padding: 1.5rem 1.25rem 1rem;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding: clamp(0.9rem, 3vw, 1.5rem) clamp(0.65rem, 3vw, 1.25rem) 1rem;
   position: relative;
 }
 
@@ -182,8 +235,17 @@ body {
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: clamp(1rem, 3vw, 1.5rem);
   min-height: 100%;
+  width: 100%;
+}
+
+/* Give the conversation more breathing room on very large displays. */
+@media (min-width: 1440px) {
+  .chat-inner,
+  .composer-inner {
+    max-width: 880px;
+  }
 }
 
 /* ---------- Empty state ---------- */
@@ -195,12 +257,13 @@ body {
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 2rem 1rem;
+  padding: 2rem 0.5rem;
   gap: 0.5rem;
+  width: 100%;
 }
 
 .empty-title {
-  font-size: 2.1rem;
+  font-size: clamp(1.5rem, 6vw, 2.1rem);
   font-weight: 700;
   letter-spacing: -0.02em;
   margin: 0;
@@ -212,8 +275,9 @@ body {
 
 .empty-subtitle {
   color: var(--text-secondary);
-  font-size: 0.98rem;
+  font-size: clamp(0.85rem, 3vw, 0.98rem);
   margin: 0 0 1.75rem;
+  max-width: 32ch;
 }
 
 .suggestion-grid {
@@ -235,6 +299,7 @@ body {
   font-size: 0.88rem;
   cursor: pointer;
   transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.1s ease;
+  min-height: 44px;
 }
 
 .suggestion-chip:hover {
@@ -278,6 +343,7 @@ body {
   font-size: 0.95rem;
   white-space: pre-wrap;
   word-wrap: break-word;
+  overflow-wrap: anywhere;
 }
 
 .user-bubble {
@@ -312,6 +378,7 @@ body {
 .bot-text {
   color: var(--text-primary);
   font-size: 0.95rem;
+  overflow-wrap: anywhere;
 }
 
 .md-paragraph {
@@ -348,6 +415,7 @@ body {
   border-radius: var(--radius-sm);
   overflow: hidden;
   background-color: var(--code-bg);
+  max-width: 100%;
 }
 
 .code-block-header {
@@ -386,11 +454,12 @@ body {
   margin: 0;
   padding: 0.85rem 1rem;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .code-block code {
   font-family: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
-  font-size: 0.85rem;
+  font-size: clamp(0.78rem, 2.2vw, 0.85rem);
   line-height: 1.55;
   color: var(--text-primary);
   white-space: pre;
@@ -452,6 +521,14 @@ body {
 .copy-btn:hover {
   background-color: var(--surface);
   color: var(--text-secondary);
+}
+
+/* Touch devices have no persistent :hover state, so a hover-revealed
+   button would otherwise be unreachable — keep it visible instead. */
+@media (hover: none) and (pointer: coarse) {
+  .copy-btn {
+    opacity: 1;
+  }
 }
 
 /* ---------- Typing indicator ---------- */
@@ -521,7 +598,8 @@ body {
 
 .composer {
   flex-shrink: 0;
-  padding: 0.75rem 1.25rem 1.1rem;
+  padding: 0.75rem clamp(0.85rem, 4vw, 1.25rem) 1.1rem;
+  padding-bottom: calc(1.1rem + env(safe-area-inset-bottom));
   background-color: var(--bg);
 }
 
@@ -531,7 +609,7 @@ body {
   display: flex;
   align-items: flex-end;
   gap: 0.6rem;
-  padding: 0.55rem 0.6rem 0.55rem 1.1rem;
+  padding: 0.55rem 0.6rem 0.55rem clamp(0.75rem, 3vw, 1.1rem);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background-color: var(--bg-soft);
@@ -591,6 +669,13 @@ body {
   cursor: not-allowed;
 }
 
+@media (hover: none) and (pointer: coarse) {
+  .send-btn {
+    width: 40px;
+    height: 40px;
+  }
+}
+
 .disclaimer {
   text-align: center;
   font-size: 0.75rem;
@@ -631,9 +716,22 @@ textarea:focus-visible {
 
 /* ---------- Responsive ---------- */
 
+/* Tablet / small laptop: tighten up the two-column layouts slightly. */
+@media (max-width: 900px) {
+  .chat-inner {
+    max-width: 100%;
+  }
+
+  .bubble,
+  .bot-content {
+    max-width: 82%;
+  }
+}
+
+/* Phones (portrait & landscape). */
 @media (max-width: 640px) {
   .top-bar {
-    padding: 0.7rem 1rem;
+    gap: 0.5rem;
   }
 
   .new-chat-btn span {
@@ -641,27 +739,81 @@ textarea:focus-visible {
   }
 
   .new-chat-btn {
-    padding: 0.5rem;
-  }
-
-  .chat-viewport {
-    padding: 1.1rem 0.85rem 0.5rem;
-  }
-
-  .composer {
-    padding: 0.6rem 0.85rem 0.9rem;
+    padding: 0.6rem;
+    aspect-ratio: 1 / 1;
+    justify-content: center;
   }
 
   .suggestion-grid {
     grid-template-columns: 1fr;
   }
 
-  .empty-title {
-    font-size: 1.7rem;
+  .bubble,
+  .bot-content {
+    max-width: 90%;
+  }
+
+  .composer-inner {
+    gap: 0.4rem;
+  }
+
+  /* iOS Safari zooms the page in when a focused input has a font-size
+     under 16px. Forcing 16px here keeps the composer usable without the
+     page jumping in and out of a zoomed state on every tap. */
+  .composer-input {
+    font-size: 16px;
+  }
+}
+
+/* Small phones (e.g. iPhone SE and similar ~360-390px widths). */
+@media (max-width: 380px) {
+  .brand-name {
+    font-size: 0.95rem;
+  }
+
+  .top-bar-actions {
+    gap: 0.35rem;
   }
 
   .bubble,
   .bot-content {
-    max-width: 88%;
+    max-width: 94%;
+  }
+
+  .disclaimer {
+    font-size: 0.68rem;
+    padding: 0 0.5rem;
+  }
+}
+
+/* Short / landscape phone screens: the empty-state hero shouldn't push
+   the composer off-screen or force scrolling to see the input. */
+@media (max-height: 480px) and (orientation: landscape) {
+  .empty-state {
+    padding: 1rem 0.5rem;
+    gap: 0.35rem;
+  }
+
+  .empty-subtitle {
+    margin-bottom: 0.9rem;
+  }
+
+  .suggestion-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .suggestion-chip {
+    padding: 0.55rem 0.8rem;
+  }
+
+  .top-bar {
+    padding-top: max(0.4rem, env(safe-area-inset-top));
+    padding-bottom: 0.4rem;
+  }
+
+  .composer {
+    padding-top: 0.4rem;
+    padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
   }
 }
